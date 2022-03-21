@@ -8,6 +8,12 @@ function disp_shift(DM, f₁, f₂)
     return KDM * DM * (f₁^-2 - f₂^-2)
 end
 
+# This code is bad, don't actually use this yet.
+# The paper from arxiv is riddled with errors and missing details
+# the published paper less so, but still not enough to implement from
+# just the pseudocode. This is more or less verbatim from the matlab impl
+# and is not idiomatic.
+
 function init(I, f_min, f_max, Δt_max, eltype)
     N_t, N_f = size(I)
     δf = (f_max - f_min) / N_f
