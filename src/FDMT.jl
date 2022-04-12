@@ -54,7 +54,8 @@ function OutputBlock(ib::InputBlock{T}, y_min, y_max) where {T}
     n_trials = y_max - y_min + 1
     # We want to keep time in the same axis here
     n_samp = size(ib)[ib.t_dim]
-    data = ib.t_dim == 1 ? zeros(T, n_samp, n_trials) : zeros(T, n_trials, n_samp)
+    #data = zeros(T, n_samp, n_trials)
+    data = Matrix{T}(undef,n_samp,n_trials)
     return OutputBlock(data, y_min, y_max, ib.t_dim, ib.f_dim)
 end
 
@@ -87,7 +88,7 @@ function split(ib::InputBlock)
     return head, tail
 end
 
-@inline circmod(x, y) = mod(x - 1, y) + 1
+circmod(x, y) = mod(x - 1, y) + 1
 
 function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     out = OutputBlock(block, y_min, y_max)
@@ -111,15 +112,15 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     y_max_tail = trunc(Int, y_max * tail.Δkdisp / block.Δkdisp + 0.5)
     transformed_tail = transform_recursive(tail, y_min_tail, y_max_tail)
 
-    n_samp = size(out.data)[out.t_dim]
+    n_samp = size(block.data)[block.t_dim]
     j_range = 1:n_samp
 
     # Merge
     @turbo for y in y_min:y_max
         # yh = delay across head band
-        yh = floor(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
+        yh = trunc(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
         # yt = delay across tail band
-        yt = floor(Int, y * tail.Δkdisp / block.Δkdisp + 0.5)
+        yt = trunc(Int, y * tail.Δkdisp / block.Δkdisp + 0.5)
         # yb = delay at interface between head and tail
         yb = y - yh - yt
         ih = yh - transformed_head.y_min + 1
