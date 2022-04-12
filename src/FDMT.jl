@@ -43,7 +43,7 @@ end
 function OutputBlock(ib::InputBlock{T}, y_min, y_max) where {T}
     n_trials = y_max - y_min + 1
     n_samp = size(ib)[1]
-    data = Matrix{T}(undef, n_samp, n_trials)
+    data = zeros(T, n_samp, n_trials)
     return OutputBlock(data, y_min, y_max)
 end
 
@@ -89,23 +89,23 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     # Split
     head, tail = split(block)
     # Transform
-    y_min_head = trunc(Int, y_min * head.Δkdisp / block.Δkdisp + 0.5)
-    y_max_head = trunc(Int, y_max * head.Δkdisp / block.Δkdisp + 0.5)
+    y_min_head = round(Int, y_min * head.Δkdisp / block.Δkdisp + 0.5)
+    y_max_head = round(Int, y_max * head.Δkdisp / block.Δkdisp + 0.5)
     transformed_head = transform_recursive(head, y_min_head, y_max_head)
 
-    y_min_tail = trunc(Int, y_min * tail.Δkdisp / block.Δkdisp + 0.5)
-    y_max_tail = trunc(Int, y_max * tail.Δkdisp / block.Δkdisp + 0.5)
+    y_min_tail = round(Int, y_min * tail.Δkdisp / block.Δkdisp + 0.5)
+    y_max_tail = round(Int, y_max * tail.Δkdisp / block.Δkdisp + 0.5)
     transformed_tail = transform_recursive(tail, y_min_tail, y_max_tail)
 
     n_samp = size(block)[1]
     j_range = 1:n_samp
 
     # Merge
-    @tturbo inline=true for y in y_min:y_max
+    @tturbo inline = true for y in y_min:y_max
         # yh = delay across head band
-        yh = trunc(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
+        yh = round(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
         # yt = delay across tail band
-        yt = trunc(Int, y * tail.Δkdisp / block.Δkdisp + 0.5)
+        yt = round(Int, y * tail.Δkdisp / block.Δkdisp + 0.5)
         # yb = delay at interface between head and tail
         yb = y - yh - yt
         ih = yh - transformed_head.y_min + 1
