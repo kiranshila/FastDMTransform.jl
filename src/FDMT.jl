@@ -122,7 +122,16 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     return out
 end
 
-function transform(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
+
+"""
+    fdmt(data,f_ch1,f_chn,t_samp,dm_min,dm_max)
+
+Computes the Fast DM Transform for dynamic spectra `data`. This spectra must have time in
+the first axis and cover frequencies from `f_ch1` to `f_chn` in descending order (in MHz).
+The sample spacing in time (seconds) is given by `t_samp` and the transform covers DMs `dm_min`
+to `dm_max`
+"""
+function fdmt(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
                    dm_min::Real, dm_max::Real)
     @assert dm_min >= 0 "Minimum DM must be zero"
     @assert dm_max >= dm_min "Maximum DM must be greater than the minimum"
@@ -136,9 +145,10 @@ function transform(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
     y_max = ceil(Int, dm_max / dm_step)
 
     # Perform transformation
-    return transform_recursive(block, y_min, y_max)
+    output = transform_recursive(block, y_min, y_max)
+    return output.data
 end
 
-export transform
+export fdmt
 
 end
