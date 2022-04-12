@@ -15,25 +15,16 @@ struct InputBlock{T<:Real,
     f_chn::TF
     # Time step in seconds
     t_samp::TT
-    # Dimension time is in
-    t_dim::Int
-    # Dimension freq is in
-    f_dim::Int
     # Dispersion delay across the bands covered by the input block
     Δkdisp::TKD
 end
 
-struct OutputBlock{T<:Real,
-                   M<:AbstractMatrix{T}} <: AbstractMatrix{T}
+struct OutputBlock{T<:Real, M<:Matrix{T}} <: AbstractMatrix{T}
     data::M
     # Dispersion delay (s) for first DM trial
     y_min::Int
     # Dispersion delay (s) for last DM trial
     y_max::Int
-    # Dimension time is in
-    t_dim::Int
-    # Dimension DM is in
-    dm_dim::Int
 end
 
 # Methods for custom array types
@@ -43,24 +34,21 @@ Base.getindex(ib::InputBlock, i::Int, j::Int) = ib.data[i, j]
 Base.getindex(ob::OutputBlock, i::Int, j::Int) = ob.data[i, j]
 
 # Default constructors
-function InputBlock(data, f_ch1, f_chn, t_samp, t_dim)
+function InputBlock(data, f_ch1, f_chn, t_samp)
     @assert f_ch1 >= f_chn "Channel 1 must be higher than Channel N"
     Δkdisp = KDM * (f_chn^-2 - f_ch1^-2)
-    f_dim = t_dim == 1 ? 2 : 1
-    return InputBlock(data, f_ch1, f_chn, t_samp, t_dim, f_dim, Δkdisp)
+    return InputBlock(data, f_ch1, f_chn, t_samp, Δkdisp)
 end
 
 function OutputBlock(ib::InputBlock{T}, y_min, y_max) where {T}
     n_trials = y_max - y_min + 1
-    # We want to keep time in the same axis here
-    n_samp = size(ib)[ib.t_dim]
-    #data = zeros(T, n_samp, n_trials)
-    data = Matrix{T}(undef,n_samp,n_trials)
-    return OutputBlock(data, y_min, y_max, ib.t_dim, ib.f_dim)
+    n_samp = size(ib)[1]
+    data = Matrix{T}(undef, n_samp, n_trials)
+    return OutputBlock(data, y_min, y_max)
 end
 
 # Channel spacing
-f_step(ib::InputBlock) = (ib.f_ch1 - ib.f_chn) / size(ib.data)[ib.f_dim]
+f_step(ib::InputBlock) = (ib.f_ch1 - ib.f_chn) / size(ib)[2]
 
 # Natural DM step of FDMT for this block
 dm_step(ib::InputBlock) = ib.t_samp / ib.Δkdisp
@@ -77,28 +65,25 @@ function split(ib::InputBlock)
     tail_start, tail_end = promote(ib.f_ch1 - (i + 1) * step, ib.f_chn)
 
     # New data slices
-    ch = size(ib)[ib.f_dim]
+    ch = size(ib)[2]
     head_slice = view(ib.data, :, 1:i)
     tail_slice = view(ib.data, :, (i + 1):ch)
 
     # New blocks
-    head = InputBlock(head_slice, head_start, head_end, ib.t_samp, ib.t_dim)
-    tail = InputBlock(tail_slice, tail_start, tail_end, ib.t_samp, ib.t_dim)
+    head = InputBlock(head_slice, head_start, head_end, ib.t_samp)
+    tail = InputBlock(tail_slice, tail_start, tail_end, ib.t_samp)
 
     return head, tail
 end
 
 circmod(x, y) = mod(x - 1, y) + 1
 
+# We really want go get rid of all these allocations, it's slowing us down a lot
 function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     out = OutputBlock(block, y_min, y_max)
     # Base Case
-    if size(block)[block.f_dim] == 1
-        if block.t_dim == 1
-            out.data[:, 1] = block.data[:, 1]
-        else
-            out.data[1, :] = block.data[1, :]
-        end
+    if size(block)[2] == 1
+        out.data[:, 1] = block.data[:, 1]
         return out
     end
     # Split
@@ -112,7 +97,7 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     y_max_tail = trunc(Int, y_max * tail.Δkdisp / block.Δkdisp + 0.5)
     transformed_tail = transform_recursive(tail, y_min_tail, y_max_tail)
 
-    n_samp = size(block.data)[block.t_dim]
+    n_samp = size(block)[1]
     j_range = 1:n_samp
 
     # Merge
@@ -126,7 +111,7 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
         ih = yh - transformed_head.y_min + 1
         it = yt - transformed_tail.y_min + 1
         i = y - out.y_min + 1
-        # Update FIXME
+        # Update
         for j in j_range
             j_shift = circmod(j + yh - yb, n_samp)
             out.data[j, i] = transformed_head.data[j, ih] +
@@ -138,12 +123,12 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
 end
 
 function transform(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
-                   dm_min::Real, dm_max::Real, t_dim::Int)
+                   dm_min::Real, dm_max::Real)
     @assert dm_min >= 0 "Minimum DM must be zero"
     @assert dm_max >= dm_min "Maximum DM must be greater than the minimum"
 
     # Build input block
-    block = InputBlock(data, f_ch1, f_chn, t_samp, t_dim)
+    block = InputBlock(data, f_ch1, f_chn, t_samp)
     dm_step = t_samp / block.Δkdisp
 
     # Convert DMs to delays in sample space
