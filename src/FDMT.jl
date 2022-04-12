@@ -101,7 +101,7 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     j_range = 1:n_samp
 
     # Merge
-    @turbo for y in y_min:y_max
+    @tturbo inline=true for y in y_min:y_max
         # yh = delay across head band
         yh = trunc(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
         # yt = delay across tail band

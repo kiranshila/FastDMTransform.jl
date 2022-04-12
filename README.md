@@ -29,15 +29,17 @@ I only have Octave as I don't want to use nonfree software, and Octave doesn't h
 
 ### FDMT.jl
 ```julia
-julia> @benchmark transform(pulse,1500,1200,1e-3,0,2000,1)
-BenchmarkTools.Trial: 19 samples with 1 evaluation.
- Range (min … max):  246.667 ms … 425.906 ms  ┊ GC (min … max): 2.48% … 41.62%
- Time  (median):     247.260 ms               ┊ GC (median):    2.48%
- Time  (mean ± σ):   266.404 ms ±  48.233 ms  ┊ GC (mean ± σ):  8.28% ± 11.47%
+julia> @benchmark transform(pulse,1500,1200,1e-3,0,2000)
+BenchmarkTools.Trial: 29 samples with 1 evaluation.
+ Range (min … max):  141.079 ms … 415.475 ms  ┊ GC (min … max): 2.85% … 57.01%
+ Time  (median):     174.254 ms               ┊ GC (median):    3.49%
+ Time  (mean ± σ):   178.063 ms ±  51.978 ms  ┊ GC (mean ± σ):  7.60% ±  9.99%
 
-  █                                                              
-  █▁▅▆▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃ ▁
-  247 ms           Histogram: frequency by time          426 ms <
+  ▃█▃      ▃                                                     
+  ███▁▁▁▁▄▇█▄▄▇▁▁▄▄▁▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄ ▁
+  141 ms           Histogram: frequency by time          415 ms <
 
- Memory estimate: 407.32 MiB, allocs estimate: 15828.
+ Memory estimate: 407.32 MiB, allocs estimate: 15846.
  ```
+
+ Our implementation here is the fastest among the lot, where we can cover every possible DM in a 3 second chunk in 180ms, that's 17x faster than realtime!
