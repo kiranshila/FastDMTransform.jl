@@ -1,6 +1,6 @@
 module FDMT
 
-using LoopVectorization
+using LoopVectorization, FFTW, LinearAlgebra
 
 const KDM = 4.148808e3 # MHz^2 s pc^-1 cm^3
 
@@ -19,7 +19,7 @@ struct InputBlock{T<:Real,
     Δkdisp::TKD
 end
 
-struct OutputBlock{T<:Real, M<:Matrix{T}} <: AbstractMatrix{T}
+struct OutputBlock{T<:Real,M<:Matrix{T}} <: AbstractMatrix{T}
     data::M
     # Dispersion delay (s) for first DM trial
     y_min::Int
@@ -101,7 +101,7 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     j_range = 1:n_samp
 
     # Merge
-    @tturbo inline = true for y in y_min:y_max
+    @tturbo for y in y_min:y_max
         # yh = delay across head band
         yh = round(Int, y * head.Δkdisp / block.Δkdisp + 0.5)
         # yt = delay across tail band
@@ -122,7 +122,6 @@ function transform_recursive(block::InputBlock, y_min::Int, y_max::Int)
     return out
 end
 
-
 """
     fdmt(data,f_ch1,f_chn,t_samp,dm_min,dm_max)
 
@@ -132,7 +131,7 @@ The sample spacing in time (seconds) is given by `t_samp` and the transform cove
 to `dm_max`
 """
 function fdmt(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
-                   dm_min::Real, dm_max::Real)
+              dm_min::Real, dm_max::Real)
     @assert dm_min >= 0 "Minimum DM must be zero"
     @assert dm_max >= dm_min "Maximum DM must be greater than the minimum"
 
@@ -147,6 +146,82 @@ function fdmt(data::AbstractMatrix, f_ch1::Real, f_chn::Real, t_samp::Real,
     # Perform transformation
     output = transform_recursive(block, y_min, y_max)
     return output.data
+end
+
+function fft_fdmt_iterate(input::AbstractArray{T,3}, Δt_max, n_chan_source, f_min, f_max,
+                          iteration) where {T}
+    n_samp, n_chan, _ = size(input)
+    # Calculate this iterations frequency range
+    δf = (2^iteration) * (f_max - f_min)/n_chan_source
+    dF = (f_max - f_min)/n_chan
+    # Maximum number of time shifts in sample channels for this iteration
+    Δt = ceil(Int, Δt_max * (f_min^-2 - (f_min + δf)^-2) / (f_min^-2 - f_max^-2))
+    # Initialize new output
+    f_jumps = Int(n_chan / 2)
+    output = zeros(T, n_samp, f_jumps, Δt + 1)
+    # See remark in paper about this random correction
+    correction = dF / 2
+    # Compute shift vector
+    Δt_shift = ceil(Int,
+                    Δt_max * (f_min^-2 - (f_min + δf / 2 + correction)^-2) /
+                    (f_min^-2 - f_max^-2)) + 2
+    shift_row = fft(Matrix{T}(I, n_samp, Δt_shift), 1)
+    # Perform the iteration
+    for i_F in 1:f_jumps
+        f_start = (f_max - f_min) / f_jumps * (i_F - 1) + f_min
+        f_end = (f_max - f_min) / f_jumps * i_F + f_min
+        f_middle_lower = (f_end - f_start) / 2 + f_start - correction
+        f_middle_upper = (f_end - f_start) / 2 + f_start + correction
+        Δt_local = ceil(Int, Δt_max * (f_start^-2 - f_end^-2) / (f_min^-2 - f_max^-2))
+        for i_Δt in 0:Δt_local
+            Δt_middle_lower = round(Int,
+                                    i_Δt * (f_middle_lower^-2 - f_start^-2) /
+                                    (f_end^-2 - f_start^-2))
+            Δt_middle_upper = round(Int,
+                                    i_Δt * (f_middle_upper^-2 - f_start^-2) /
+                                    (f_end^-2 - f_start^-2))
+            Δt_rest = i_Δt - Δt_middle_upper
+            if !iszero(Δt_middle_lower)
+                output[:, i_F, i_Δt + 1] = @views input[:, 2 * i_F - 1,
+                                                        Δt_middle_lower + 1] +
+                                                  input[:, 2 * i_F, Δt_rest + 1] .*
+                                                  shift_row[:, Δt_middle_upper + 1]
+            else
+                output[:, i_F, i_Δt + 1] = @views input[:, 2 * i_F - 1,
+                                                        Δt_middle_lower + 1] +
+                                                  input[:, 2 * i_F, Δt_rest + 1]
+            end
+        end
+    end
+    return output
+end
+
+function fft_fdmt(data::AbstractMatrix, f_min::Real, f_max::Real, Δt_max=nothing;
+                  dtype=Float32)
+    ##### Initialization
+    @assert f_min < f_max
+    n_samp, n_chan = size(data)
+    if isnothing(Δt_max)
+        Δt_max = n_chan
+    end
+    δf = (f_max - f_min) / n_chan
+    # Maximum number of time shifts in sample channels for the first iteration
+    Δt = ceil(Int, Δt_max * (f_min^-2 - (f_min + δf)^-2) / (f_min^-2 - f_max^-2))
+    # Initialize output
+    # Axes are [samples,channels,delta_t] because column-major
+    state = zeros(Complex{dtype}, n_samp, n_chan, Δt + 1)
+    state[:, :, 1] .= fft(data, 1)
+    shifter = fft(cumsum(Matrix{dtype}(I, n_samp, Δt + 1); dims=2), 1)
+    for i_Δt in 2:(Δt + 1)
+        state[:, :, i_Δt] = state[:, :, 1] .* shifter[:, i_Δt]
+    end
+    ##### Iterations
+    for i_t in 1:Int(log2(n_chan))
+        state = fft_fdmt_iterate(state, Δt_max, n_chan, f_min, f_max, i_t)
+    end
+    state = real.(ifft!(state, 1))
+    _, _, n_dm = size(state)
+    return reshape(state, n_samp, n_dm)
 end
 
 export fdmt
