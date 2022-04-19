@@ -4,12 +4,15 @@ authors = ["Kiran Shila <me@kiranshila.com> and contributors"]
 version = "0.1.0"
 
 [deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
 FoldsCUDA = "6cd66ae4-5932-4b96-926d-e73e578e42cc"
+LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 julia = "1.6"
