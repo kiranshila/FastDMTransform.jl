@@ -42,4 +42,35 @@ BenchmarkTools.Trial: 71 samples with 1 evaluation.
  Memory estimate: 479.17 MiB, allocs estimate: 281374.
  ```
 
- Our implementation here is the fastest among the lot - almost 10x faster than the reference python implementation, where we can cover every possible DM in a 3 second chunk in 50ms, that's 60x faster than realtime!
+### [Dedisp.jl](https://github.com/kiranshila/Dedisp.jl)
+
+Here, I've been working on an "optimized" brute force approach
+
+```julia
+plan = plan_dedisp(range(;start=1500,stop=1200,length=4096),1500,range(;start=0,stop=2000,length=2076),1e-3)
+julia> @benchmark Dedisp.dedisp(pulse,plan)
+BenchmarkTools.Trial: 1 sample with 1 evaluation.
+ Single result which took 7.142 s (0.00% GC) to evaluate,
+ with a memory estimate of 23.76 MiB, over 8 allocations.
+```
+
+But, FDMT is still not as fast as the GPU-accelerated brute-force version, but reasonably close
+```julia
+output = CUDA.zeros(3000,2076)
+plan = cu(plan)
+pulse = cu(pulse)
+julia> @benchmark CUDA.@sync dedisp!(output,pulse,plan)
+BenchmarkTools.Trial: 85 samples with 1 evaluation.
+ Range (min … max):  55.555 ms … 71.742 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     58.945 ms              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   59.135 ms ±  1.516 ms  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+                                    ▃ █▆▆▄▄▄▃ ▁    ▃           
+  ▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄▁▁▁▁▁▆▄█▇███████▁█▇▇▇▆█▁▆▁▆▄▁▁▁▄ ▁
+  55.6 ms         Histogram: frequency by time        60.5 ms <
+
+ Memory estimate: 8.72 KiB, allocs estimate: 150.
+```
+
+ Our implementation here is the fastest (CPU version) among the lot - almost 10x faster than the reference python implementation, where we can cover every possible DM in a 3 second chunk in 50ms, that's 60x faster than realtime!
+
