@@ -115,7 +115,7 @@ version = "0.27.15"
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
-[[deps.FDMT]]
+[[deps.FastDMTransform]]
 deps = ["LoopVectorization"]
 path = ".."
 uuid = "7c26793b-8990-4dde-b963-55489d0b7d45"

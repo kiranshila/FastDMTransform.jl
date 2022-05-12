@@ -50,6 +50,6 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using FDMT
-            DocMeta.setdocmeta!(FDMT, :DocTestSetup, :(using FDMT); recursive=true)
-            doctest(FDMT)'
+            using FastDMTransform
+            DocMeta.setdocmeta!(FastDMTransform, :DocTestSetup, :(using FastDMTransform); recursive=true)
+            doctest(FastDMTransform)'

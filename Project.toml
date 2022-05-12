@@ -1,4 +1,4 @@
-name = "FDMT"
+name = "FastDMTransform"
 uuid = "7c26793b-8990-4dde-b963-55489d0b7d45"
 authors = ["Kiran Shila <me@kiranshila.com> and contributors"]
 version = "0.1.0"

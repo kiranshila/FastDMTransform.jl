@@ -4,7 +4,7 @@
 ```
 
 ```@autodocs
-Modules = [FDMT]
+Modules = [FastDMTransform]
 Order = [:function,:type]
 Private = false
 ```

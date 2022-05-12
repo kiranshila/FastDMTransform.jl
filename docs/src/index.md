@@ -1,14 +1,14 @@
 ```@meta
-CurrentModule = FDMT
+CurrentModule = FastDMTransform
 ```
 
-# FDMT
+# FastDMTransform
 
-Documentation for [FDMT](https://github.com/kiranshila/FDMT.jl).
+Documentation for [FastDMTransform](https://github.com/kiranshila/FastDMTransform.jl).
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [FDMT]
+Modules = [FastDMTransform]
 ```
