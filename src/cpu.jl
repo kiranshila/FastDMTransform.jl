@@ -1,4 +1,4 @@
-using LoopVectorization, FFTW, LinearAlgebra, Base.Threads
+using LoopVectorization, LinearAlgebra, Base.Threads
 import Base.Threads.@spawn
 
 struct InputBlock{T<:Real,
